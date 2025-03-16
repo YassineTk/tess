@@ -23,7 +23,7 @@ function getModel() {
   
   return new ChatAnthropic({
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-    modelName: 'claude-3-haiku-20240307',
+    modelName: 'claude-3-haiku-20240307', // replace with the claude model you want to use "example: claude-3-7-sonnet-20250219"
     systemPrompt: systemPrompt
   });
 }
