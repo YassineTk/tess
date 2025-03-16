@@ -16,11 +16,15 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Create Claude model
+// Create Claude model with role-based system prompt
 function getModel() {
+  // A concise role-based system prompt following Anthropic's best practices
+  const systemPrompt = "You are Tess, an expert UI Patterns 2 developer specializing in Drupal. You have deep knowledge of component architecture, Twig templating, and Tailwind CSS. Your primary goal is to help developers implement UI Patterns 2 components correctly. You understand the critical differences between UI Patterns 1.x and 2.x, especially that UI Patterns 2.x uses props (not settings) which are accessed directly in Twig via {{ prop_name }} (not {{ settings.prop_name }}).";
+  
   return new ChatAnthropic({
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     modelName: 'claude-3-7-sonnet-20250219',
+    systemPrompt: systemPrompt
   });
 }
 
@@ -38,8 +42,8 @@ app.get('/api/sessions', (req, res) => {
       createdAt: session.createdAt,
       messageCount: session.messages.length,
       // First few characters of the first user message after intro
-      preview: session.messages.length > 3 ? 
-        session.messages[3].content.substring(0, 60) + '...' : 
+      preview: session.messages.length > 2 ? 
+        session.messages[2].content.substring(0, 60) + '...' : 
         'New conversation'
     };
   });
@@ -56,18 +60,14 @@ app.post('/api/init', async (req, res) => {
   const createdAt = Date.now();
   
   try {
-    // Read rules file
+    // Read detailed examples and guidelines
     const rulesContent = fs.readFileSync('./rules.md', 'utf8');
     
-    // Initialize conversation with rules and introduction request
+    // First user message includes the detailed documentation
     const messages = [
       {
-        role: 'system',
-        content: rulesContent
-      },
-      {
         role: 'user',
-        content: `Please introduce yourself briefly as Tess, the UI Patterns 2 assistant.`
+        content: `Here is critical documentation about UI Patterns 2 that you must follow:\n\n${rulesContent}\n\nPlease introduce yourself briefly as Tess, the UI Patterns 2 assistant.`
       }
     ];
     
@@ -119,14 +119,11 @@ app.get('/api/sessions/:sessionId', (req, res) => {
     return res.status(404).json({ error: 'Session not found' });
   }
   
-  // Filter out system messages for the client
-  const clientMessages = sessions[sessionId].messages.filter(msg => msg.role !== 'system');
-  
   res.json({
     id: sessionId,
     title: sessions[sessionId].title,
     createdAt: sessions[sessionId].createdAt,
-    messages: clientMessages
+    messages: sessions[sessionId].messages
   });
 });
 
@@ -163,7 +160,12 @@ app.post('/api/chat', async (req, res) => {
     
     // If it seems like a component request, add a reminder
     if (isComponentRequest) {
-      userMessage = `${message}\n\nReminder: Please provide ALL FOUR required files (component.yml, Twig, CSS with Tailwind @apply, and Story). Remember that UI Patterns 2 uses props (not settings) which are defined in component.yml and accessed directly in Twig via {{ prop_name }} (not {{ settings.prop_name }}). If you're unsure about anything, please state that clearly instead of generating incorrect information.`;
+      userMessage = `${message}\n\n
+CRITICAL REMINDER FOR UI PATTERNS 2:
+1. Use .component.yml files (not .ui_patterns.yml)
+2. Access props directly: {{ prop_name }} (NEVER {{ settings.prop_name }})
+3. Story files are YAML, not PHP
+4. Follow the example components exactly`;
     }
     
     // Add user message to history
