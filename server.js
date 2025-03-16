@@ -150,23 +150,33 @@ app.post('/api/chat', async (req, res) => {
   }
   
   try {
-    // Check if this is a component generation request
-    const isComponentRequest = message.toLowerCase().includes('generate') || 
-                              message.toLowerCase().includes('create a component') ||
-                              message.toLowerCase().includes('ui pattern') ||
-                              message.toLowerCase().includes('jira');
-    
-    let userMessage = message;
-    
-    // If it seems like a component request, add a reminder
-    if (isComponentRequest) {
-      userMessage = `${message}\n\n
+    // Add reminder to every message
+    let userMessage = `${message}\n\n
 CRITICAL REMINDER FOR UI PATTERNS 2:
 1. Use .component.yml files (not .ui_patterns.yml)
 2. Access props directly: {{ prop_name }} (NEVER {{ settings.prop_name }})
-3. Story files are YAML, not PHP
-4. Follow the example components exactly`;
-    }
+3. Story files should follow the pattern: component_name.variant_name.story.yml
+   - Default story should be: component_name.default.story.yml
+   - Additional variants: component_name.variant_name.story.yml
+4. Don't use a "variants" property - instead use props with enum values
+   - Example: 
+     alignment:
+       title: "Alignment"
+       $ref: "ui-patterns://enum"
+       enum:
+         - default
+         - vertical
+       "meta:enum":
+         default: "Default"
+         vertical: "Vertical"
+5. Slots NEVER have type definitions, only props do
+   - CORRECT slots example:
+     slots:
+       image:
+         title: Image
+         description: "Card image."
+   - Only props should have types (integer, string, enum, etc.)
+6. Follow the example components exactly`;
     
     // Add user message to history
     sessions[sessionId].messages.push({
