@@ -176,7 +176,20 @@ CRITICAL REMINDER FOR UI PATTERNS 2:
          title: Image
          description: "Card image."
    - Only props should have types (integer, string, enum, etc.)
-6. Follow the example components exactly`;
+6. In story files, image slots should be formatted like this:
+   image:
+     theme: image
+     uri: "https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp"
+     alt: Shoes
+7. NEVER use static heading tags (h1, h2, etc.) in Twig templates
+   - Instead, use a heading_level prop with h2 as default
+   - Example in props:
+     heading_level:
+       title: "Heading Level"
+       type: string
+       default: "h2"
+   - Example in Twig: <{{ heading_level }}>{{ heading }}</{{ heading_level }}>
+8. Follow the example components exactly`;
     
     // Add user message to history
     sessions[sessionId].messages.push({
