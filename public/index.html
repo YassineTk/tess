@@ -281,6 +281,32 @@
       padding: 2px 4px;
       border-radius: 3px;
     }
+    
+    .info-banner {
+      background-color: #f8f9fa;
+      border-left: 4px solid var(--primary-color);
+      padding: 10px 15px;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      color: var(--light-text);
+    }
+    
+    .info-banner svg {
+      margin-right: 10px;
+      color: var(--primary-color);
+    }
+    
+    .info-banner a {
+      color: var(--primary-color);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .info-banner a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -301,6 +327,15 @@
         <div class="subtitle">Your expert companion for Drupal UI Patterns</div>
         <input type="text" id="conversation-title" placeholder="Untitled Conversation">
       </header>
+      
+      <div class="info-banner">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>To control API costs, set a monthly spend limit in your <a href="https://console.anthropic.com/settings/limits" target="_blank">Anthropic Console Limits</a> section.</span>
+      </div>
       
       <div class="chat-container" id="chat-container"></div>
       
@@ -507,7 +542,7 @@
         
         // Enable send button
         sendButton.disabled = false;
-        sendButton.textContent = 'Send';
+        sendButton.textjContent = 'Send';
         
         // Reload conversation list to update preview
         loadConversations();
