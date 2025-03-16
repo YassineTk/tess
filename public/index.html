@@ -30,15 +30,85 @@
     }
     
     .container {
-      max-width: 900px;
+      max-width: 1200px;
       margin: 0 auto;
       background: white;
       border-radius: 10px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       overflow: hidden;
       display: flex;
-      flex-direction: column;
       height: 90vh;
+    }
+    
+    .sidebar {
+      width: 250px;
+      background-color: #f0f2f5;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .sidebar-header {
+      padding: 15px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .sidebar-header h2 {
+      font-size: 16px;
+      margin: 0;
+    }
+    
+    #new-chat-btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .conversation-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+    
+    .conversation-item {
+      padding: 10px 15px;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+    }
+    
+    .conversation-item:hover {
+      background-color: rgba(0,0,0,0.05);
+    }
+    
+    .conversation-item.active {
+      background-color: rgba(74, 144, 226, 0.1);
+      border-left: 3px solid var(--primary-color);
+    }
+    
+    .conversation-title {
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+    
+    .conversation-preview {
+      font-size: 12px;
+      color: var(--light-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
     
     header {
@@ -56,6 +126,25 @@
     .subtitle {
       font-size: 14px;
       opacity: 0.8;
+    }
+    
+    #conversation-title {
+      width: 100%;
+      max-width: 300px;
+      margin: 5px auto 0;
+      padding: 5px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      font-size: 14px;
+      text-align: center;
+      background-color: transparent;
+      color: white;
+    }
+    
+    #conversation-title:focus {
+      border-color: rgba(255,255,255,0.5);
+      background-color: rgba(255,255,255,0.1);
+      outline: none;
     }
     
     .chat-container {
@@ -196,16 +285,29 @@
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>Tess - UI Patterns Assistant</h1>
-      <div class="subtitle">Your expert companion for Drupal UI Patterns</div>
-    </header>
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>Conversations</h2>
+        <button id="new-chat-btn">New Chat</button>
+      </div>
+      <div class="conversation-list" id="conversation-list">
+        <!-- Conversations will be listed here -->
+      </div>
+    </div>
     
-    <div class="chat-container" id="chat-container"></div>
-    
-    <div class="input-container">
-      <textarea id="user-input" placeholder="Ask about UI Patterns components..."></textarea>
-      <button id="send-button">Send</button>
+    <div class="main-content">
+      <header>
+        <h1>Tess - UI Patterns Assistant</h1>
+        <div class="subtitle">Your expert companion for Drupal UI Patterns</div>
+        <input type="text" id="conversation-title" placeholder="Untitled Conversation">
+      </header>
+      
+      <div class="chat-container" id="chat-container"></div>
+      
+      <div class="input-container">
+        <textarea id="user-input" placeholder="Ask about UI Patterns components..."></textarea>
+        <button id="send-button">Send</button>
+      </div>
     </div>
   </div>
 
@@ -216,6 +318,9 @@
     const chatContainer = document.getElementById('chat-container');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
+    const conversationList = document.getElementById('conversation-list');
+    const conversationTitle = document.getElementById('conversation-title');
+    const newChatBtn = document.getElementById('new-chat-btn');
     
     // Configure marked to use highlight.js
     marked.setOptions({
@@ -227,7 +332,71 @@
       }
     });
     
-    // Initialize the chat
+    // Load conversation list
+    async function loadConversations() {
+      try {
+        const response = await fetch('/api/sessions');
+        const sessions = await response.json();
+        
+        // Clear the list
+        conversationList.innerHTML = '';
+        
+        // Add each conversation to the list
+        sessions.forEach(session => {
+          const item = document.createElement('div');
+          item.className = 'conversation-item';
+          item.dataset.id = session.id;
+          
+          if (session.id === sessionId) {
+            item.classList.add('active');
+          }
+          
+          item.innerHTML = `
+            <div class="conversation-title">${session.title}</div>
+            <div class="conversation-preview">${session.preview}</div>
+          `;
+          
+          item.addEventListener('click', () => loadConversation(session.id));
+          conversationList.appendChild(item);
+        });
+      } catch (error) {
+        console.error('Error loading conversations:', error);
+      }
+    }
+    
+    // Load a specific conversation
+    async function loadConversation(id) {
+      try {
+        const response = await fetch(`/api/sessions/${id}`);
+        const session = await response.json();
+        
+        // Update session ID
+        sessionId = id;
+        
+        // Update title
+        conversationTitle.value = session.title;
+        
+        // Clear chat container
+        chatContainer.innerHTML = '';
+        
+        // Add messages
+        session.messages.forEach(msg => {
+          const role = msg.role === 'user' ? 'user' : 'assistant';
+          addMessage(msg.content, role);
+        });
+        
+        // Update active conversation in list
+        document.querySelectorAll('.conversation-item').forEach(item => {
+          item.classList.remove('active');
+        });
+        document.querySelector(`.conversation-item[data-id="${id}"]`)?.classList.add('active');
+        
+      } catch (error) {
+        console.error('Error loading conversation:', error);
+      }
+    }
+    
+    // Initialize a new chat
     async function initChat() {
       try {
         sendButton.disabled = true;
@@ -243,8 +412,17 @@
         const data = await response.json();
         sessionId = data.sessionId;
         
+        // Clear chat container
+        chatContainer.innerHTML = '';
+        
         // Display the initial message
         addMessage(data.message, 'assistant');
+        
+        // Update title
+        conversationTitle.value = 'New Conversation';
+        
+        // Reload conversation list
+        loadConversations();
         
         sendButton.disabled = false;
         sendButton.textContent = 'Send';
@@ -254,6 +432,26 @@
         sendButton.textContent = 'Send';
       }
     }
+    
+    // Update conversation title
+    conversationTitle.addEventListener('blur', async () => {
+      if (!sessionId) return;
+      
+      try {
+        await fetch(`/api/sessions/${sessionId}/rename`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ title: conversationTitle.value })
+        });
+        
+        // Reload conversation list to show updated title
+        loadConversations();
+      } catch (error) {
+        console.error('Error updating title:', error);
+      }
+    });
     
     // Add a message to the chat
     function addMessage(content, sender) {
@@ -310,6 +508,9 @@
         // Enable send button
         sendButton.disabled = false;
         sendButton.textContent = 'Send';
+        
+        // Reload conversation list to update preview
+        loadConversations();
       } catch (error) {
         console.error('Error sending message:', error);
         sendButton.disabled = false;
@@ -327,8 +528,14 @@
       }
     });
     
+    // New chat button
+    newChatBtn.addEventListener('click', initChat);
+    
     // Initialize the chat when the page loads
-    window.addEventListener('load', initChat);
+    window.addEventListener('load', () => {
+      initChat();
+      loadConversations();
+    });
   </script>
 </body>
 </html>

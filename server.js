@@ -48,9 +48,33 @@ const model = new ChatAnthropic({
 // Store conversation history for each session
 const sessions = {};
 
+// Add a new endpoint to list all sessions
+app.get('/api/sessions', (req, res) => {
+  // Create a simplified list of sessions with metadata
+  const sessionList = Object.keys(sessions).map(id => {
+    const session = sessions[id];
+    return {
+      id,
+      title: session.title || 'Untitled Conversation',
+      createdAt: session.createdAt,
+      messageCount: session.messages.length,
+      // First few characters of the first user message after intro
+      preview: session.messages.length > 2 ? 
+        session.messages[2].content.substring(0, 60) + '...' : 
+        'New conversation'
+    };
+  });
+  
+  // Sort by most recent first
+  sessionList.sort((a, b) => b.createdAt - a.createdAt);
+  
+  res.json(sessionList);
+});
+
 // Initialize a new session
 app.post('/api/init', async (req, res) => {
   const sessionId = Date.now().toString();
+  const createdAt = Date.now();
   
   try {
     // Initialize conversation with documentation links
@@ -66,8 +90,10 @@ Please introduce yourself briefly.`
     
     const response = await model.invoke(messages);
     
-    // Store the conversation
+    // Store the conversation with metadata
     sessions[sessionId] = {
+      title: 'New Conversation',
+      createdAt,
       messages: [
         ...messages,
         {
@@ -85,6 +111,35 @@ Please introduce yourself briefly.`
     console.error('Error initializing session:', error);
     res.status(500).json({ error: 'Failed to initialize session' });
   }
+});
+
+// Add endpoint to rename a conversation
+app.post('/api/sessions/:sessionId/rename', (req, res) => {
+  const { sessionId } = req.params;
+  const { title } = req.body;
+  
+  if (!sessionId || !sessions[sessionId]) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  sessions[sessionId].title = title;
+  res.json({ success: true });
+});
+
+// Add endpoint to get a specific session
+app.get('/api/sessions/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  
+  if (!sessionId || !sessions[sessionId]) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  res.json({
+    id: sessionId,
+    title: sessions[sessionId].title,
+    createdAt: sessions[sessionId].createdAt,
+    messages: sessions[sessionId].messages.slice(1) // Skip the documentation message
+  });
 });
 
 // Send a message to Tess
