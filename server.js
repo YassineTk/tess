@@ -16,34 +16,13 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Documentation URLs
-const docsUrls = [
-  'https://project.pages.drupalcode.org/ui_patterns/',
-  'https://project.pages.drupalcode.org/ui_patterns/1-users/0-component-form/',
-  'https://project.pages.drupalcode.org/ui_patterns/1-users/1-as-block/',
-  'https://project.pages.drupalcode.org/ui_patterns/1-users/2-as-layout/',
-  'https://project.pages.drupalcode.org/ui_patterns/1-users/3-in-field-formatter/',
-  'https://project.pages.drupalcode.org/ui_patterns/1-users/4-with-views/',
-  'https://project.pages.drupalcode.org/ui_patterns/1-users/5-presenter-templates/',
-  'https://project.pages.drupalcode.org/ui_patterns/2-authors/0-authoring-a-component/',
-  'https://project.pages.drupalcode.org/ui_patterns/2-authors/1-stories-and-library/',
-  'https://project.pages.drupalcode.org/ui_patterns/2-authors/2-best-practices/',
-  'https://project.pages.drupalcode.org/ui_patterns/2-authors/3-migration-from-UIP1/',
-  'https://project.pages.drupalcode.org/ui_patterns/3-devs/1-source-plugins/',
-  'https://project.pages.drupalcode.org/ui_patterns/3-devs/2-prop-type-plugins/',
-  'https://project.pages.drupalcode.org/ui_patterns/3-devs/3-internals/',
-  'https://project.pages.drupalcode.org/ui_patterns/faq/'
-];
-
-// Read rules file
-const rulesContent = fs.readFileSync('./rules.md', 'utf8');
-
 // Create Claude model
-const model = new ChatAnthropic({
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-  modelName: 'claude-3-7-sonnet-20250219',
-  systemPrompt: rulesContent
-});
+function getModel() {
+  return new ChatAnthropic({
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    modelName: 'claude-3-7-sonnet-20250219',
+  });
+}
 
 // Store conversation history for each session
 const sessions = {};
@@ -59,8 +38,8 @@ app.get('/api/sessions', (req, res) => {
       createdAt: session.createdAt,
       messageCount: session.messages.length,
       // First few characters of the first user message after intro
-      preview: session.messages.length > 2 ? 
-        session.messages[2].content.substring(0, 60) + '...' : 
+      preview: session.messages.length > 3 ? 
+        session.messages[3].content.substring(0, 60) + '...' : 
         'New conversation'
     };
   });
@@ -77,17 +56,23 @@ app.post('/api/init', async (req, res) => {
   const createdAt = Date.now();
   
   try {
-    // Initialize conversation with documentation links
+    // Read rules file
+    const rulesContent = fs.readFileSync('./rules.md', 'utf8');
+    
+    // Initialize conversation with rules and introduction request
     const messages = [
       {
+        role: 'system',
+        content: rulesContent
+      },
+      {
         role: 'user',
-        content: `I'll be asking you questions about UI Patterns in Drupal. Please refer to these documentation sources for accurate information:
-${docsUrls.join('\n')}
-
-Please introduce yourself briefly.`
+        content: `Please introduce yourself briefly as Tess, the UI Patterns 2 assistant.`
       }
     ];
     
+    // Get model instance
+    const model = getModel();
     const response = await model.invoke(messages);
     
     // Store the conversation with metadata
@@ -134,12 +119,29 @@ app.get('/api/sessions/:sessionId', (req, res) => {
     return res.status(404).json({ error: 'Session not found' });
   }
   
+  // Filter out system messages for the client
+  const clientMessages = sessions[sessionId].messages.filter(msg => msg.role !== 'system');
+  
   res.json({
     id: sessionId,
     title: sessions[sessionId].title,
     createdAt: sessions[sessionId].createdAt,
-    messages: sessions[sessionId].messages.slice(1) // Skip the documentation message
+    messages: clientMessages
   });
+});
+
+// Add endpoint to delete a conversation
+app.delete('/api/sessions/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  
+  if (!sessionId || !sessions[sessionId]) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  // Delete the session
+  delete sessions[sessionId];
+  
+  res.json({ success: true });
 });
 
 // Send a message to Tess
@@ -151,11 +153,27 @@ app.post('/api/chat', async (req, res) => {
   }
   
   try {
+    // Check if this is a component generation request
+    const isComponentRequest = message.toLowerCase().includes('generate') || 
+                              message.toLowerCase().includes('create a component') ||
+                              message.toLowerCase().includes('ui pattern') ||
+                              message.toLowerCase().includes('jira');
+    
+    let userMessage = message;
+    
+    // If it seems like a component request, add a reminder
+    if (isComponentRequest) {
+      userMessage = `${message}\n\nReminder: Please provide ALL FOUR required files (component.yml, Twig, CSS with Tailwind @apply, and Story). Remember that UI Patterns 2 uses props (not settings) which are defined in component.yml and accessed directly in Twig via {{ prop_name }} (not {{ settings.prop_name }}). If you're unsure about anything, please state that clearly instead of generating incorrect information.`;
+    }
+    
     // Add user message to history
     sessions[sessionId].messages.push({
       role: 'user',
-      content: message
+      content: userMessage
     });
+    
+    // Get model instance
+    const model = getModel();
     
     // Get response using messages array
     const response = await model.invoke(sessions[sessionId].messages);
