@@ -1,6 +1,6 @@
-# Tess - UI Patterns Assistant
+# Tess - UI Patterns 2 Assistant
 
-An AI assistant specialized in Drupal UI Patterns, helping developers understand and generate UI Pattern components.
+An AI assistant specialized in Drupal UI Patterns 2, helping developers understand and generate UI Pattern components.
 
 ## Setup
 
