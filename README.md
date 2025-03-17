@@ -7,7 +7,7 @@ An AI assistant specialized in Drupal UI Patterns 2, helping developers understa
 ### Prerequisites
 - Node.js (v18+)
 - npm (v6+)
-- Anthropic API key with Claude 3.7 Sonnet access
+- Anthropic API key
 
 ### Installation
 
