@@ -5,6 +5,7 @@ const { ChatAnthropic } = require('@langchain/anthropic');
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 
 dotenv.config();
 
@@ -23,6 +24,80 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Set up sessions directory for file-based storage
+const sessionsDir = path.join(__dirname, 'sessions');
+if (!fs.existsSync(sessionsDir)) {
+  fs.mkdirSync(sessionsDir);
+}
+
+// Save session to file
+function saveSession(sessionId, sessionData) {
+  const filePath = path.join(sessionsDir, `${sessionId}.json`);
+  fs.writeFileSync(filePath, JSON.stringify(sessionData, null, 2));
+}
+
+// Load session from file
+function loadSession(sessionId) {
+  const filePath = path.join(sessionsDir, `${sessionId}.json`);
+  if (fs.existsSync(filePath)) {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  }
+  return null;
+}
+
+// List all sessions
+function listSessions() {
+  if (!fs.existsSync(sessionsDir)) return [];
+  
+  const files = fs.readdirSync(sessionsDir);
+  return files
+    .filter(file => file.endsWith('.json'))
+    .map(file => {
+      const sessionId = file.replace('.json', '');
+      const sessionData = loadSession(sessionId);
+      if (!sessionData) return null;
+      
+      return {
+        id: sessionId,
+        title: sessionData.title || 'Untitled Conversation',
+        createdAt: sessionData.createdAt,
+        messageCount: sessionData.messages.length,
+        preview: sessionData.messages.length > 2 ? 
+          sessionData.messages[2].content.substring(0, 60) + '...' : 
+          'New conversation',
+        mode: sessionData.mode || 'basic'
+      };
+    })
+    .filter(session => session !== null);
+}
+
+// Clean up old sessions (older than 30 days)
+function cleanupOldSessions() {
+  const MAX_AGE_DAYS = 30;
+  const now = Date.now();
+  const maxAge = MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+  
+  if (!fs.existsSync(sessionsDir)) return;
+  
+  const files = fs.readdirSync(sessionsDir);
+  files.forEach(file => {
+    if (!file.endsWith('.json')) return;
+    
+    const filePath = path.join(sessionsDir, file);
+    const stats = fs.statSync(filePath);
+    const fileAge = now - stats.mtime.getTime();
+    
+    if (fileAge > maxAge) {
+      fs.unlinkSync(filePath);
+      console.log(`Deleted old session: ${file}`);
+    }
+  });
+}
+
+// Run cleanup at startup and daily
+cleanupOldSessions();
+setInterval(cleanupOldSessions, 24 * 60 * 60 * 1000);
+
 // Create Claude model with role-based system prompt
 function getModel() {
   // A concise role-based system prompt following Anthropic's best practices
@@ -35,26 +110,10 @@ function getModel() {
   });
 }
 
-// Store conversation history for each session
-const sessions = {};
-
 // Add a new endpoint to list all sessions
 app.get('/api/sessions', (req, res) => {
-  // Create a simplified list of sessions with metadata
-  const sessionList = Object.keys(sessions).map(id => {
-    const session = sessions[id];
-    return {
-      id,
-      title: session.title || 'Untitled Conversation',
-      createdAt: session.createdAt,
-      messageCount: session.messages.length,
-      // First few characters of the first user message after intro
-      preview: session.messages.length > 2 ? 
-        session.messages[2].content.substring(0, 60) + '...' : 
-        'New conversation',
-      mode: session.mode || 'basic'
-    };
-  });
+  // Get all sessions
+  const sessionList = listSessions();
   
   // Sort by most recent first
   sessionList.sort((a, b) => b.createdAt - a.createdAt);
@@ -91,8 +150,8 @@ app.post('/api/init', async (req, res) => {
       rulesContent = fs.readFileSync(path.join(__dirname, rulesFile), 'utf8');
     } catch (error) {
       console.error(`Error reading ${rulesFile}:`, error);
-      // Fallback to rules.md if the specific file doesn't exist
-      rulesContent = fs.readFileSync(path.join(__dirname, 'rules.md'), 'utf8');
+      // Fallback to rules.min.md if the specific file doesn't exist
+      rulesContent = fs.readFileSync(path.join(__dirname, 'rules.min.md'), 'utf8');
     }
     
     // First user message includes the documentation
@@ -108,7 +167,7 @@ app.post('/api/init', async (req, res) => {
     const response = await model.invoke(messages);
     
     // Store the conversation with metadata
-    sessions[sessionId] = {
+    const sessionData = {
       title: 'New Conversation',
       createdAt,
       messages: [
@@ -120,6 +179,9 @@ app.post('/api/init', async (req, res) => {
       ],
       mode: mode // Store the selected mode
     };
+    
+    // Save to file
+    saveSession(sessionId, sessionData);
     
     res.json({
       sessionId,
@@ -137,11 +199,14 @@ app.post('/api/sessions/:sessionId/rename', (req, res) => {
   const { sessionId } = req.params;
   const { title } = req.body;
   
-  if (!sessionId || !sessions[sessionId]) {
+  const session = loadSession(sessionId);
+  if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
   
-  sessions[sessionId].title = title;
+  session.title = title;
+  saveSession(sessionId, session);
+  
   res.json({ success: true });
 });
 
@@ -149,16 +214,17 @@ app.post('/api/sessions/:sessionId/rename', (req, res) => {
 app.get('/api/sessions/:sessionId', (req, res) => {
   const { sessionId } = req.params;
   
-  if (!sessionId || !sessions[sessionId]) {
+  const session = loadSession(sessionId);
+  if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
   
   res.json({
     id: sessionId,
-    title: sessions[sessionId].title,
-    createdAt: sessions[sessionId].createdAt,
-    messages: sessions[sessionId].messages,
-    mode: sessions[sessionId].mode || 'basic' // Include the mode
+    title: session.title,
+    createdAt: session.createdAt,
+    messages: session.messages,
+    mode: session.mode || 'basic' // Include the mode
   });
 });
 
@@ -166,12 +232,13 @@ app.get('/api/sessions/:sessionId', (req, res) => {
 app.delete('/api/sessions/:sessionId', (req, res) => {
   const { sessionId } = req.params;
   
-  if (!sessionId || !sessions[sessionId]) {
+  const filePath = path.join(sessionsDir, `${sessionId}.json`);
+  if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'Session not found' });
   }
   
-  // Delete the session
-  delete sessions[sessionId];
+  // Delete the session file
+  fs.unlinkSync(filePath);
   
   res.json({ success: true });
 });
@@ -180,7 +247,8 @@ app.delete('/api/sessions/:sessionId', (req, res) => {
 app.post('/api/mode', async (req, res) => {
   const { sessionId, mode } = req.body;
   
-  if (!sessionId || !sessions[sessionId]) {
+  const session = loadSession(sessionId);
+  if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
   
@@ -191,16 +259,16 @@ app.post('/api/mode', async (req, res) => {
     
     switch (mode) {
       case MODES.FULL:
-        rulesFile = 'rules-full.md';
+        rulesFile = 'rules.full.md';
         modeName = 'Full Documentation';
         break;
       case MODES.BACKEND:
-        rulesFile = 'rules-backend.md';
+        rulesFile = 'rules.backend.md';
         modeName = 'Backend Integration';
         break;
       case MODES.BASIC:
       default:
-        rulesFile = 'rules.md';
+        rulesFile = 'rules.min.md';
         modeName = 'UI Pattern Generator';
         break;
     }
@@ -211,12 +279,12 @@ app.post('/api/mode', async (req, res) => {
       rulesContent = fs.readFileSync(path.join(__dirname, rulesFile), 'utf8');
     } catch (error) {
       console.error(`Error reading ${rulesFile}:`, error);
-      // Fallback to rules.md if the specific file doesn't exist
-      rulesContent = fs.readFileSync(path.join(__dirname, 'rules.md'), 'utf8');
+      // Fallback to rules.min.md if the specific file doesn't exist
+      rulesContent = fs.readFileSync(path.join(__dirname, 'rules.min.md'), 'utf8');
     }
     
     // Store the current mode
-    sessions[sessionId].mode = mode;
+    session.mode = mode;
     
     // Create a new user message with the updated rules
     const userMessage = {
@@ -225,19 +293,22 @@ app.post('/api/mode', async (req, res) => {
     };
     
     // Add the mode change message to history
-    sessions[sessionId].messages.push(userMessage);
+    session.messages.push(userMessage);
     
     // Get model instance
     const model = getModel();
     
     // Get response using the full conversation history
-    const response = await model.invoke(sessions[sessionId].messages);
+    const response = await model.invoke(session.messages);
     
     // Add assistant response to history
-    sessions[sessionId].messages.push({
+    session.messages.push({
       role: 'assistant',
       content: response.content
     });
+    
+    // Save updated session
+    saveSession(sessionId, session);
     
     res.json({ 
       message: response.content,
@@ -249,11 +320,45 @@ app.post('/api/mode', async (req, res) => {
   }
 });
 
+// Export a session
+app.get('/api/sessions/:sessionId/export', (req, res) => {
+  const { sessionId } = req.params;
+  const session = loadSession(sessionId);
+  
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  res.setHeader('Content-Disposition', `attachment; filename="tess-conversation-${sessionId}.json"`);
+  res.setHeader('Content-Type', 'application/json');
+  res.json(session);
+});
+
+// Import a session
+app.post('/api/sessions/import', (req, res) => {
+  const sessionData = req.body;
+  
+  if (!sessionData || !sessionData.messages || !sessionData.createdAt) {
+    return res.status(400).json({ error: 'Invalid session data' });
+  }
+  
+  const sessionId = Date.now().toString();
+  sessionData.importedAt = Date.now();
+  
+  saveSession(sessionId, sessionData);
+  
+  res.json({ 
+    message: 'Session imported successfully', 
+    sessionId 
+  });
+});
+
 // Send a message to Tess
 app.post('/api/chat', async (req, res) => {
   const { sessionId, message } = req.body;
   
-  if (!sessionId || !sessions[sessionId]) {
+  const session = loadSession(sessionId);
+  if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
   
@@ -300,22 +405,35 @@ CRITICAL REMINDER FOR UI PATTERNS 2:
 8. Follow the example components exactly`;
     
     // Add user message to history
-    sessions[sessionId].messages.push({
+    session.messages.push({
       role: 'user',
       content: userMessage
     });
+    
+    // Limit message history if it gets too long
+    const MAX_MESSAGES = 50;
+    if (session.messages.length > MAX_MESSAGES) {
+      // Keep the first 2 messages (system prompt and initial response)
+      // and the most recent messages
+      const initialMessages = session.messages.slice(0, 2);
+      const recentMessages = session.messages.slice(-MAX_MESSAGES + 2);
+      session.messages = [...initialMessages, ...recentMessages];
+    }
     
     // Get model instance
     const model = getModel();
     
     // Get response using messages array
-    const response = await model.invoke(sessions[sessionId].messages);
+    const response = await model.invoke(session.messages);
     
     // Add assistant response to history
-    sessions[sessionId].messages.push({
+    session.messages.push({
       role: 'assistant',
       content: response.content
     });
+    
+    // Save updated session
+    saveSession(sessionId, session);
     
     res.json({ message: response.content });
   } catch (error) {

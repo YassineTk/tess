@@ -237,7 +237,7 @@ function addMessage(content, sender) {
   // Apply syntax highlighting to code blocks
   messageDiv.querySelectorAll('pre code').forEach((block) => {
     hljs.highlightElement(block);
-  });  
+  });
 }
 
 // Send a message
@@ -303,4 +303,18 @@ newChatBtn.addEventListener('click', () => {
 window.addEventListener('load', () => {
   // Don't auto-initialize, wait for mode selection
   loadConversations();
+});
+
+// Add this after the other event listeners (around line 295)
+document.getElementById('close-modal-btn')?.addEventListener('click', () => {
+  // If there's an active session, just hide the modal
+  if (sessionId) {
+    modeSelectionModal.style.display = 'none';
+    mainContainer.classList.remove('hidden');
+  } else {
+    // If no active session, initialize with default mode
+    modeSelectionModal.style.display = 'none';
+    mainContainer.classList.remove('hidden');
+    initChat('basic');
+  }
 });
