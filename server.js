@@ -63,7 +63,7 @@ function listSessions() {
         createdAt: sessionData.createdAt,
         messageCount: sessionData.messages.length,
         preview: sessionData.messages.length > 2 ? 
-          sessionData.messages[2].content.substring(0, 60) + '...' : 
+          sessionData.messages[2].content.substring(0, 10) + '...' : 
           'New conversation',
         mode: sessionData.mode || 'basic'
       };
@@ -133,14 +133,14 @@ app.post('/api/init', async (req, res) => {
     
     switch (mode) {
       case MODES.FULL:
-        rulesFile = 'rules-full.md';
+        rulesFile = path.join('rules', 'rules-full.md');
         break;
       case MODES.BACKEND:
-        rulesFile = 'rules-backend.md';
+        rulesFile = path.join('rules', 'rules-backend.md');
         break;
       case MODES.BASIC:
       default:
-        rulesFile = 'rules.md';
+        rulesFile = path.join('rules', 'rules.md');
         break;
     }
     
@@ -151,7 +151,7 @@ app.post('/api/init', async (req, res) => {
     } catch (error) {
       console.error(`Error reading ${rulesFile}:`, error);
       // Fallback to rules.min.md if the specific file doesn't exist
-      rulesContent = fs.readFileSync(path.join(__dirname, 'rules.min.md'), 'utf8');
+      rulesContent = fs.readFileSync(path.join(__dirname, 'rules', 'rules.md'), 'utf8');
     }
     
     // First user message includes the documentation
@@ -439,6 +439,28 @@ CRITICAL REMINDER FOR UI PATTERNS 2:
   } catch (error) {
     console.error('Error in chat:', error);
     res.status(500).json({ error: 'Failed to process message' });
+  }
+});
+
+// Add a delete session endpoint
+app.delete('/api/sessions/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  
+  try {
+    const filePath = path.join(sessionsDir, `${sessionId}.json`);
+    
+    // Check if the file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    // Delete the file
+    fs.unlinkSync(filePath);
+    
+    res.json({ message: 'Session deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting session:', error);
+    res.status(500).json({ error: 'Failed to delete session' });
   }
 });
 

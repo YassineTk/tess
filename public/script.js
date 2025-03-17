@@ -88,6 +88,7 @@ marked.setOptions({
 });
 
 // Load conversation list
+// Update the loadConversations function to include delete buttons
 async function loadConversations() {
   try {
     const response = await fetch('/api/sessions');
@@ -107,15 +108,62 @@ async function loadConversations() {
       }
       
       item.innerHTML = `
-        <div class="conversation-title">${session.title}</div>
-        <div class="conversation-preview">${session.preview}</div>
+        <div class="conversation-content">
+          <div class="conversation-title">${session.title}</div>
+          <div class="conversation-preview">${session.preview}</div>
+        </div>
+        <button class="delete-btn" title="Delete conversation">×</button>
       `;
       
-      item.addEventListener('click', () => loadConversation(session.id));
+      // Add click handler for the conversation item
+      item.querySelector('.conversation-content').addEventListener('click', () => loadConversation(session.id));
+      
+      // Add click handler for the delete button
+      item.querySelector('.delete-btn').addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering the conversation load
+        deleteConversation(session.id);
+      });
+      
       conversationList.appendChild(item);
     });
   } catch (error) {
     console.error('Error loading conversations:', error);
+  }
+}
+
+// Add a function to handle conversation deletion
+async function deleteConversation(id) {
+  // Ask for confirmation
+  if (!confirm('Are you sure you want to delete this conversation?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/api/sessions/${id}`, {
+      method: 'DELETE'
+    });
+    
+    if (response.ok) {
+      // If the deleted conversation was the active one, reset the UI
+      if (id === sessionId) {
+        // Clear chat container
+        chatContainer.innerHTML = '';
+        
+        // Reset session ID
+        sessionId = null;
+        
+        // Show the mode selection modal
+        modeSelectionModal.style.display = 'flex';
+        mainContainer.classList.add('hidden');
+      }
+      
+      // Reload the conversation list
+      loadConversations();
+    } else {
+      console.error('Failed to delete conversation');
+    }
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
   }
 }
 
