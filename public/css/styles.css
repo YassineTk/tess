@@ -423,3 +423,8 @@ h1 {
   background-color: rgba(255, 0, 0, 0.1);
   color: #ff4d4d;
 }
+
+.pointer-events-none {
+  pointer-events: none;
+  opacity: 0.5;
+}
