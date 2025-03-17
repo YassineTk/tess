@@ -4,7 +4,8 @@
   "description": "UI Patterns Assistant",
   "main": "server.js",  
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "clear-sessions": "node clear-sessions.js"
   },
   "dependencies": {
     "@langchain/anthropic": "^0.3.15",

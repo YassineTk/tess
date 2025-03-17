@@ -29,3 +29,20 @@ PORT=3000
 ```bash
 npm start
 ```
+
+
+## Conversation Storage
+
+Tess uses a file-based storage system to maintain conversations:
+
+- All conversations are stored as JSON files in the `sessions` directory
+- Each conversation is saved in its own file named with the session ID
+- Conversations persist between server restarts
+- Old conversations (older than 30 days) are automatically cleaned up
+
+## Utility Commands
+
+Clear all saved conversations:
+```
+npm run clear-sessions
+```
