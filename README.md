@@ -46,3 +46,20 @@ Clear all saved conversations:
 ```
 npm run clear-sessions
 ```
+
+## Future Improvements
+
+### Immediate Concerns
+
+- **Token Optimization**: Currently, each API request sends the entire conversation history to the AI model, which is inefficient and costly.
+
+- **Frontend Refactoring**: The script.js file needs to be refactored into a more modular structure to improve maintainability. This work is planned but not yet implemented.
+
+### Documentation Challenges
+
+- **Documentation Loading**: The current approach loads documentation from static files. As our documentation grows, we'll need a more scalable solution.
+
+- **Context Management**: Larger documentation will exceed token limits. We need to implement strategies like:
+  - Selective loading of relevant documentation sections
+  - Summarization of documentation
+  - Vector database integration for retrieval-augmented generation
