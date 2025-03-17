@@ -8,6 +8,13 @@ const path = require('path');
 
 dotenv.config();
 
+// Define mode constants
+const MODES = {
+  BASIC: 'basic',
+  FULL: 'full',
+  BACKEND: 'backend'
+};
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -44,7 +51,8 @@ app.get('/api/sessions', (req, res) => {
       // First few characters of the first user message after intro
       preview: session.messages.length > 2 ? 
         session.messages[2].content.substring(0, 60) + '...' : 
-        'New conversation'
+        'New conversation',
+      mode: session.mode || 'basic'
     };
   });
   
@@ -58,12 +66,36 @@ app.get('/api/sessions', (req, res) => {
 app.post('/api/init', async (req, res) => {
   const sessionId = Date.now().toString();
   const createdAt = Date.now();
+  const mode = req.body.mode || MODES.BASIC; // Get mode from request or use default
   
   try {
-    // Read detailed examples and guidelines
-    const rulesContent = fs.readFileSync('./rules.md', 'utf8');
+    // Determine which rules file to use based on the requested mode
+    let rulesFile;
     
-    // First user message includes the detailed documentation
+    switch (mode) {
+      case MODES.FULL:
+        rulesFile = 'rules-full.md';
+        break;
+      case MODES.BACKEND:
+        rulesFile = 'rules-backend.md';
+        break;
+      case MODES.BASIC:
+      default:
+        rulesFile = 'rules.md';
+        break;
+    }
+    
+    // Read the appropriate rules file
+    let rulesContent;
+    try {
+      rulesContent = fs.readFileSync(path.join(__dirname, rulesFile), 'utf8');
+    } catch (error) {
+      console.error(`Error reading ${rulesFile}:`, error);
+      // Fallback to rules.md if the specific file doesn't exist
+      rulesContent = fs.readFileSync(path.join(__dirname, 'rules.md'), 'utf8');
+    }
+    
+    // First user message includes the documentation
     const messages = [
       {
         role: 'user',
@@ -85,12 +117,14 @@ app.post('/api/init', async (req, res) => {
           role: 'assistant',
           content: response.content
         }
-      ]
+      ],
+      mode: mode // Store the selected mode
     };
     
     res.json({
       sessionId,
-      message: response.content
+      message: response.content,
+      mode: mode
     });
   } catch (error) {
     console.error('Error initializing session:', error);
@@ -123,7 +157,8 @@ app.get('/api/sessions/:sessionId', (req, res) => {
     id: sessionId,
     title: sessions[sessionId].title,
     createdAt: sessions[sessionId].createdAt,
-    messages: sessions[sessionId].messages
+    messages: sessions[sessionId].messages,
+    mode: sessions[sessionId].mode || 'basic' // Include the mode
   });
 });
 
@@ -139,6 +174,79 @@ app.delete('/api/sessions/:sessionId', (req, res) => {
   delete sessions[sessionId];
   
   res.json({ success: true });
+});
+
+// Add a new endpoint for mode selection
+app.post('/api/mode', async (req, res) => {
+  const { sessionId, mode } = req.body;
+  
+  if (!sessionId || !sessions[sessionId]) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  try {
+    // Determine which rules file to use
+    let rulesFile;
+    let modeName;
+    
+    switch (mode) {
+      case MODES.FULL:
+        rulesFile = 'rules-full.md';
+        modeName = 'Full Documentation';
+        break;
+      case MODES.BACKEND:
+        rulesFile = 'rules-backend.md';
+        modeName = 'Backend Integration';
+        break;
+      case MODES.BASIC:
+      default:
+        rulesFile = 'rules.md';
+        modeName = 'UI Pattern Generator';
+        break;
+    }
+    
+    // Read the appropriate rules file
+    let rulesContent;
+    try {
+      rulesContent = fs.readFileSync(path.join(__dirname, rulesFile), 'utf8');
+    } catch (error) {
+      console.error(`Error reading ${rulesFile}:`, error);
+      // Fallback to rules.md if the specific file doesn't exist
+      rulesContent = fs.readFileSync(path.join(__dirname, 'rules.md'), 'utf8');
+    }
+    
+    // Store the current mode
+    sessions[sessionId].mode = mode;
+    
+    // Create a new user message with the updated rules
+    const userMessage = {
+      role: 'user',
+      content: `Please switch to ${modeName} mode. Here is the updated documentation to follow:\n\n${rulesContent}`
+    };
+    
+    // Add the mode change message to history
+    sessions[sessionId].messages.push(userMessage);
+    
+    // Get model instance
+    const model = getModel();
+    
+    // Get response using the full conversation history
+    const response = await model.invoke(sessions[sessionId].messages);
+    
+    // Add assistant response to history
+    sessions[sessionId].messages.push({
+      role: 'assistant',
+      content: response.content
+    });
+    
+    res.json({ 
+      message: response.content,
+      mode: mode
+    });
+  } catch (error) {
+    console.error('Error changing mode:', error);
+    res.status(500).json({ error: 'Failed to change mode' });
+  }
 });
 
 // Send a message to Tess

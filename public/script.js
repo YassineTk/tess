@@ -5,6 +5,77 @@ const sendButton = document.getElementById('send-button');
 const conversationList = document.getElementById('conversation-list');
 const conversationTitle = document.getElementById('conversation-title');
 const newChatBtn = document.getElementById('new-chat-btn');
+const modeSelect = document.getElementById('mode-select');
+const modeSelectionModal = document.getElementById('mode-selection-modal');
+const mainContainer = document.getElementById('main-container');
+const modeOptions = document.querySelectorAll('.mode-option');
+let currentMode = 'basic'; // Default mode
+
+// Mode selection
+modeOptions.forEach(option => {
+  option.addEventListener('click', function() {
+    const selectedMode = this.dataset.mode;
+    currentMode = selectedMode;
+    
+    // Update the mode selector to match
+    modeSelect.value = selectedMode;
+    
+    // Hide the mode selection modal
+    modeSelectionModal.style.display = 'none';
+    
+    // Show the main container
+    mainContainer.classList.remove('hidden');
+    
+    // Initialize chat with the selected mode
+    initChat(selectedMode);
+  });
+});
+
+// Add this function to handle mode changes
+async function changeMode(mode) {
+  if (!sessionId) return;
+  
+  try {
+    // Disable the select during the request
+    modeSelect.disabled = true;
+    
+    // Add a loading message
+    addMessage("Changing mode...", 'assistant');
+    
+    const response = await fetch('/api/mode', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        sessionId: sessionId,
+        mode: mode 
+      })
+    });
+    
+    const data = await response.json();
+    
+    // Add the response to the chat
+    addMessage(data.message, 'assistant');
+    
+    // Update the current mode
+    currentMode = mode;
+    
+    // Scroll to the bottom
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  } catch (error) {
+    console.error('Error changing mode:', error);
+    addMessage("Error changing mode. Please try again.", 'assistant');
+  } finally {
+    // Re-enable the select
+    modeSelect.disabled = false;
+  }
+}
+
+// Add this event listener for the mode selector
+modeSelect.addEventListener('change', function() {
+  changeMode(this.value);
+});
 
 // Configure marked to use highlight.js
 marked.setOptions({
@@ -60,13 +131,20 @@ async function loadConversation(id) {
     // Update title
     conversationTitle.value = session.title;
     
+    // Update mode if available
+    if (session.mode) {
+      currentMode = session.mode;
+      modeSelect.value = currentMode;
+    }
+    
     // Clear chat container
     chatContainer.innerHTML = '';
     
     // Add messages
     session.messages.forEach(msg => {
-      const role = msg.role === 'user' ? 'user' : 'assistant';
-      addMessage(msg.content, role);
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        addMessage(msg.content, msg.role);
+      }
     });
     
     // Update active conversation in list
@@ -81,7 +159,7 @@ async function loadConversation(id) {
 }
 
 // Initialize a new chat
-async function initChat() {
+async function initChat(mode = currentMode) {
   try {
     sendButton.disabled = true;
     sendButton.innerHTML = '<div class="loading"></div>';
@@ -90,11 +168,16 @@ async function initChat() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ mode: mode })
     });
     
     const data = await response.json();
     sessionId = data.sessionId;
+    currentMode = data.mode || 'basic';
+    
+    // Set the mode selector to match
+    modeSelect.value = currentMode;
     
     // Clear chat container
     chatContainer.innerHTML = '';
@@ -210,10 +293,14 @@ userInput.addEventListener('keydown', (e) => {
 });
 
 // New chat button
-newChatBtn.addEventListener('click', initChat);
+newChatBtn.addEventListener('click', () => {
+  // Show the mode selection modal
+  modeSelectionModal.style.display = 'flex';
+  mainContainer.classList.add('hidden');
+});
 
 // Initialize the chat when the page loads
 window.addEventListener('load', () => {
-  initChat();
+  // Don't auto-initialize, wait for mode selection
   loadConversations();
-}); 
+});

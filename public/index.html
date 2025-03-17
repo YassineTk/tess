@@ -8,7 +8,32 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
+  <!-- Mode selection modal -->
+  <div id="mode-selection-modal" class="mode-selection-modal">
+    <div class="mode-selection-container">
+      <h2>Choose Tess Mode</h2>
+      <p>Select how you want to interact with Tess:</p>
+      
+      <div class="mode-options">
+        <div class="mode-option" data-mode="basic">
+          <h3>UI Pattern Generator</h3>
+          <p>Generate UI Patterns 2 components with minimal explanations</p>
+        </div>
+        
+        <div class="mode-option" data-mode="backend">
+          <h3>Backend Integration</h3>
+          <p>Get help with Drupal backend integration of UI Patterns 2</p>
+        </div>
+        
+        <div class="mode-option" data-mode="full">
+          <h3>Full Documentation</h3>
+          <p>Access complete UI Patterns 2 documentation and detailed explanations</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container hidden" id="main-container">
     <div class="sidebar">
       <div class="sidebar-header">
         <h2>Conversations</h2>
@@ -33,6 +58,15 @@
           <line x1="12" y1="16" x2="12.01" y2="16"></line>
         </svg>
         <span>To control API costs, set a monthly spend limit in your <a href="https://console.anthropic.com/settings/limits" target="_blank">Anthropic Console Limits</a> section.</span>
+      </div>
+
+      <div class="mode-selector">
+        <label for="mode-select">Mode:</label>
+        <select id="mode-select">
+          <option value="basic">UI Pattern Generator</option>
+          <option value="backend">Backend Integration</option>
+          <option value="full">Full Documentation</option>
+        </select>
       </div>
       
       <div class="chat-container" id="chat-container"></div>
