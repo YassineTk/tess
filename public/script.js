@@ -5,7 +5,6 @@ const sendButton = document.getElementById('send-button');
 const conversationList = document.getElementById('conversation-list');
 const conversationTitle = document.getElementById('conversation-title');
 const newChatBtn = document.getElementById('new-chat-btn');
-const modeSelect = document.getElementById('mode-select');
 const modeSelectionModal = document.getElementById('mode-selection-modal');
 const mainContainer = document.getElementById('main-container');
 const modeOptions = document.querySelectorAll('.mode-option');
@@ -16,9 +15,7 @@ modeOptions.forEach(option => {
   option.addEventListener('click', function() {
     const selectedMode = this.dataset.mode;
     currentMode = selectedMode;
-    
-    // Update the mode selector to match
-    modeSelect.value = selectedMode;
+  
     
     // Hide the mode selection modal
     modeSelectionModal.style.display = 'none';
@@ -31,51 +28,6 @@ modeOptions.forEach(option => {
   });
 });
 
-// Add this function to handle mode changes
-async function changeMode(mode) {
-  if (!sessionId) return;
-  
-  try {
-    // Disable the select during the request
-    modeSelect.disabled = true;
-    
-    // Add a loading message
-    addMessage("Changing mode...", 'assistant');
-    
-    const response = await fetch('/api/mode', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ 
-        sessionId: sessionId,
-        mode: mode 
-      })
-    });
-    
-    const data = await response.json();
-    
-    // Add the response to the chat
-    addMessage(data.message, 'assistant');
-    
-    // Update the current mode
-    currentMode = mode;
-    
-    // Scroll to the bottom
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  } catch (error) {
-    console.error('Error changing mode:', error);
-    addMessage("Error changing mode. Please try again.", 'assistant');
-  } finally {
-    // Re-enable the select
-    modeSelect.disabled = false;
-  }
-}
-
-// Add this event listener for the mode selector
-modeSelect.addEventListener('change', function() {
-  changeMode(this.value);
-});
 
 // Configure marked to use highlight.js
 marked.setOptions({
@@ -182,7 +134,6 @@ async function loadConversation(id) {
     // Update mode if available
     if (session.mode) {
       currentMode = session.mode;
-      modeSelect.value = currentMode;
     }
     
     // Clear chat container
@@ -223,9 +174,6 @@ async function initChat(mode = currentMode) {
     const data = await response.json();
     sessionId = data.sessionId;
     currentMode = data.mode || 'basic';
-    
-    // Set the mode selector to match
-    modeSelect.value = currentMode;
     
     // Clear chat container
     chatContainer.innerHTML = '';
