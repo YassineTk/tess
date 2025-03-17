@@ -154,10 +154,7 @@ function addMessage(content, sender) {
   // Apply syntax highlighting to code blocks
   messageDiv.querySelectorAll('pre code').forEach((block) => {
     hljs.highlightElement(block);
-  });
-  
-  // Scroll to bottom
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  });  
 }
 
 // Send a message
