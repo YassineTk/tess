@@ -188,7 +188,7 @@ CRITICAL REMINDER FOR UI PATTERNS 2:
        title: "Heading Level"
        type: string
        default: "h2"
-   - Example in Twig: <{{ heading_level }}>{{ heading }}</{{ heading_level }}>
+   - Example in Twig: <h{{ heading_level }}>{{ heading }}</h{{ heading_level }}>
 8. Follow the example components exactly`;
     
     // Add user message to history
