@@ -16,7 +16,7 @@ const initChat = async (req, res) => {
     const messages = [
       {
         role: 'user',
-        content: `Here is critical documentation about UI Patterns 2 that you must follow:\n\n${rulesContent}\n\nPlease introduce yourself briefly as Tess, the UI Patterns 2 assistant.`
+        content: `Here is critical documentation about UI Patterns 2 that you must follow:\n\n${rulesContent}\n\nPlease introduce yourself briefly using the intro from the documentation.`
       }
     ];
     

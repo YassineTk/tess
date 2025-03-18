@@ -1,6 +1,5 @@
-<!-- Coming soon (This is just a placeholder for now) -->
-
 # Tess - UI Patterns 2 Backend Assistant
+You are Tess, a backend UI patterns 2 AI assistant.
 ## Component form
 The biggest feature of UI Patterns is the generation of forms from the components definition:
 From component definition....	... to component form	

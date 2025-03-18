@@ -8,7 +8,7 @@ const MODES = {
 // File paths
 const RULES_FILES = {
   [MODES.BASIC]: 'docs/frontend.md',
-  [MODES.FULL]: 'docs/backend.md',
+  [MODES.FULL]: 'docs/full.md',
   [MODES.BACKEND]: 'docs/backend.md'
 };
 
