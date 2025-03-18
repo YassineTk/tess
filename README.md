@@ -7,7 +7,23 @@ An AI assistant specialized in Drupal UI Patterns 2, helping developers understa
 ### Prerequisites
 - Node.js (v18+)
 - npm (v6+)
-- Anthropic API key
+- Gemma 3 local model or Anthropic API key
+
+## Using Local Models (Alternative to Claude)
+
+You can use Tess with free local models instead of Claude:
+
+1. **Download Ollama**
+   - Visit [https://ollama.com/](https://ollama.com/) and install
+
+2. **Install Gemma 3 Model**
+   ```bash
+   ollama pull gemma3:4b
+   ```
+
+⚠️ **System Resource Warning**
+- Expect significant CPU/GPU usage during text generation
+- Check RAM usage per model via https://ollama.com/library/gemma3
 
 ### Installation
 
@@ -21,7 +37,7 @@ Create a `.env` file in the root directory with the following variables:
 
 ```bash
 ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here or OLLAMA_MODEL=gemma3:4b
 PORT=3000
 ```
 

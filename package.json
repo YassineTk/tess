@@ -2,7 +2,7 @@
   "name": "tess",
   "version": "1.0.0",
   "description": "UI Patterns Assistant",
-  "main": "server.js",  
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "clear-sessions": "node clear-sessions.js"
@@ -10,6 +10,7 @@
   "dependencies": {
     "@langchain/anthropic": "^0.3.15",
     "@langchain/community": "^0.3.35",
+    "@langchain/ollama": "^0.2.0",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
