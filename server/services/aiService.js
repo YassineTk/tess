@@ -7,6 +7,7 @@ const { ChatOllama } = require('@langchain/ollama');
 // Create Claude model with role-based system prompt
 function getModel() {
   const useLocalModel = process.env.USE_LOCAL_MODEL === 'true';
+  console.log('useLocalModel', useLocalModel);
   
   if (useLocalModel) {
     // Use local Gemma 3 model
@@ -14,13 +15,10 @@ function getModel() {
       model: process.env.OLLAMA_MODEL,
     });
   } else {
-    // Existing Claude implementation
-    const systemPrompt = "You are Tess, an expert UI Patterns 2 developer specializing in Drupal. You have deep knowledge of component architecture, Twig templating, and Tailwind CSS. Your primary goal is to help developers implement UI Patterns 2 components correctly. You understand the critical differences between UI Patterns 1.x and 2.x, especially that UI Patterns 2.x uses props (not settings) which are accessed directly in Twig via {{ prop_name }} (not {{ settings.prop_name }}).";
-    
+    // Existing Claude implementation    
     return new ChatAnthropic({
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       modelName: process.env.ANTHROPIC_MODEL,
-      systemPrompt: systemPrompt
     });
   }
 }
