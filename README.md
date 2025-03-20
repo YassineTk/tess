@@ -10,7 +10,7 @@ An AI assistant specialized in Drupal UI Patterns 2, helping developers understa
 - Gemma 3 local model or Anthropic API key
 
 ## Using Local Models (Alternative to Claude)
-⚠️**Please not that the docs integration for this part is still in progress**⚠️
+⚠️**Please note that the docs integration for this part is still in progress**⚠️
 
 You can use Tess with free local models instead of Claude:
 
